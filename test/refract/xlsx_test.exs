@@ -147,6 +147,89 @@ defmodule Refract.XLSXTest do
     end
   end
 
+  describe "sheets/2" do
+    test "lists the visible sheets" do
+      assert {:ok, ["Summary", "Line items"]} = XLSX.sheets(fixture("sheets.xlsx"), [])
+    end
+
+    test "hidden: true lists every sheet" do
+      assert {:ok, ["Summary", "Line items", "lookup"]} =
+               XLSX.sheets(fixture("sheets.xlsx"), hidden: true)
+    end
+
+    test "sheet: narrows it to that sheet, by name or position" do
+      assert {:ok, ["Line items"]} = XLSX.sheets(fixture("sheets.xlsx"), sheet: "Line items")
+      assert {:ok, ["Line items"]} = XLSX.sheets(fixture("sheets.xlsx"), sheet: 2)
+    end
+
+    test "an unknown sheet or a missing file is an error" do
+      assert {:error, {:unknown_sheet, "Nope"}} =
+               XLSX.sheets(fixture("sheets.xlsx"), sheet: "Nope")
+
+      assert {:error, :enoent} = XLSX.sheets(fixture("missing.xlsx"), [])
+    end
+  end
+
+  describe "classify_sheets/3" do
+    defp aws_bill do
+      Shape.new(
+        name: "aws_bill",
+        spec:
+          Table.spec(
+            header: [columns: %{"account" => ["account"], "cost" => ["cost"]}],
+            row: [match: %{"account" => ~r/^\d{12}$/, "cost" => :number}]
+          )
+      )
+    end
+
+    defp verdicts(sheets) do
+      for {sheet, {:ok, %Result{verdict: verdict, shape: shape}}} <- sheets,
+          do: {sheet, verdict, verdict == :match && shape.name}
+    end
+
+    test "classifies every visible sheet of a workbook" do
+      assert {:ok, sheets} = XLSX.classify_sheets(fixture("months.xlsx"), [aws_bill()])
+
+      assert verdicts(sheets) == [
+               {"Jul", :match, "aws_bill"},
+               {"Aug", :match, "aws_bill"},
+               {"Sep", :match, "aws_bill"},
+               {"Notes", :unknown, false}
+             ]
+    end
+
+    test "each result names its sheet" do
+      assert {:ok, sheets} = XLSX.classify_sheets(fixture("sheets.xlsx"), [invoice()])
+
+      for {sheet, {:ok, result}} <- sheets, do: assert(result.file.format.sheet == sheet)
+    end
+
+    test "a cover sheet does not hide the table sheet" do
+      assert {:ok, sheets} = XLSX.classify_sheets(fixture("sheets.xlsx"), [invoice()])
+
+      assert verdicts(sheets) == [{"Summary", :unknown, false}, {"Line items", :match, "invoice"}]
+    end
+
+    test "hidden: true includes hidden sheets, sheet: narrows to one" do
+      assert {:ok, [_summary, _items, {"lookup", {:ok, _result}}]} =
+               XLSX.classify_sheets(fixture("sheets.xlsx"), [invoice()], hidden: true)
+
+      assert {:ok, [{"Aug", {:ok, %Result{verdict: :match}}}]} =
+               XLSX.classify_sheets(fixture("months.xlsx"), [aws_bill()], sheet: "Aug")
+    end
+
+    test "classify options apply to every sheet" do
+      assert {:ok, sheets} =
+               XLSX.classify_sheets(fixture("months.xlsx"), [aws_bill()], within: 0)
+
+      assert Enum.all?(sheets, &match?({_sheet, {:ok, %Result{verdict: :unknown}}}, &1))
+    end
+
+    test "a workbook that cannot be read is an error" do
+      assert {:error, :enoent} = XLSX.classify_sheets(fixture("missing.xlsx"), [invoice()])
+    end
+  end
+
   describe "through Refract.Reader" do
     test "extensions are xlsx and xlsm" do
       assert XLSX.extensions() == ["xlsx", "xlsm"]

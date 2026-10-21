@@ -11,6 +11,7 @@ file          sheets                                  covers
 types.xlsx    Data                                    text numbers ids dates date times times booleans blank cells formulas
 sheets.xlsx   Summary Line items lookup hidden        a cover sheet then a table sheet a merged title cell a hidden sheet
 offset.xlsx   names ages                              complex joins as a workbook tables offset below a total
+months.xlsx   Jul Aug Sep Notes                       one aws bill shape in three sheets with numeric ids and a notes sheet
 golden/complex_joins/expected.csv                     copied from refract core golden complex_joins
 
 libreoffice quirks

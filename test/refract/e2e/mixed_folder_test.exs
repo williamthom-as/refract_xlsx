@@ -65,6 +65,33 @@ defmodule Refract.E2E.MixedFolderTest do
            ]
   end
 
+  test "a folder classifies one table per file, workbooks with more sheets drill in", %{
+    tmp_dir: dir
+  } do
+    File.cp!(Path.expand("../../fixtures/months.xlsx", __DIR__), Path.join(dir, "months.xlsx"))
+    :ok = CSV.write(bills(), Path.join(dir, "aws_bill.csv"), header: ["account", "cost"])
+
+    {:ok, results} = Classify.folder(dir, shapes(), readers: [XLSX, CSV])
+
+    drilled =
+      Enum.flat_map(results, fn
+        {path, {:ok, %Result{file: %{format: %{sheets: [_one, _two | _rest]}}}}} ->
+          {:ok, sheets} = XLSX.classify_sheets(path, shapes())
+          for {sheet, {:ok, result}} <- sheets, do: {Path.basename(path), sheet, result.verdict}
+
+        {path, {:ok, result}} ->
+          [{Path.basename(path), nil, result.verdict}]
+      end)
+
+    assert drilled == [
+             {"aws_bill.csv", nil, :match},
+             {"months.xlsx", "Jul", :match},
+             {"months.xlsx", "Aug", :match},
+             {"months.xlsx", "Sep", :match},
+             {"months.xlsx", "Notes", :unknown}
+           ]
+  end
+
   test "an xlsx result names its sheet, a csv result does not", %{tmp_dir: dir} do
     :ok =
       XLSX.write(bills(), Path.join(dir, "aws_bill.xlsx"),

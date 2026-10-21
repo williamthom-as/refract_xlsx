@@ -7,6 +7,7 @@ defmodule Refract.XLSX do
 
       {:ok, rows} = Refract.XLSX.stream("bills.xlsx", sheet: "Sep")
       {:ok, result} = Refract.XLSX.classify("bills.xlsx", shapes, sheet: 2)
+      {:ok, [{"Jul", {:ok, result}} | _sheets]} = Refract.XLSX.classify_sheets("q3.xlsx", shapes)
       :ok = Refract.XLSX.write(rows, "out/report.xlsx", header: ["account", "cost"], sheet: "Report")
   """
 
@@ -62,6 +63,34 @@ defmodule Refract.XLSX do
     with {:ok, workbook} <- workbook(source),
          {:ok, name} <- sheet_name(workbook, sheet, hidden) do
       {:ok, %{sheet: name, sheets: workbook.visible, hidden: workbook.all -- workbook.visible}}
+    end
+  end
+
+  @spec sheets(Refract.source(), [open_opt()]) :: {:ok, [String.t()]} | {:error, term()}
+
+  def sheets(source, opts) do
+    opts = Keyword.validate!(opts, sheet: nil, hidden: false)
+    sheet = Keyword.fetch!(opts, :sheet)
+    hidden = Keyword.fetch!(opts, :hidden)
+
+    validate_sheet(sheet)
+    validate_hidden(hidden)
+
+    with {:ok, workbook} <- workbook(source) do
+      sheet_names(workbook, sheet, hidden)
+    end
+  end
+
+  @spec classify_sheets(Refract.source(), [Refract.Shape.t() | module()], keyword()) ::
+          {:ok, [{String.t(), {:ok, Refract.Classify.Result.t()} | {:error, term()}}]}
+          | {:error, term()}
+
+  def classify_sheets(source, shapes, opts \\ []) do
+    {sheet_opts, classify_opts} = Keyword.split(opts, [:sheet, :hidden])
+
+    with {:ok, sheets} <- sheets(source, sheet_opts) do
+      {:ok,
+       Enum.map(sheets, &{&1, classify(source, shapes, Keyword.put(classify_opts, :sheet, &1))})}
     end
   end
 
@@ -160,6 +189,12 @@ defmodule Refract.XLSX do
   defp opened({:ok, package}), do: {:ok, package}
   defp opened({:error, "file not found"}), do: {:error, :enoent}
   defp opened({:error, message}), do: {:error, {:invalid_xlsx, message}}
+
+  defp sheet_names(workbook, nil, hidden), do: {:ok, candidates(workbook, hidden)}
+
+  defp sheet_names(workbook, sheet, hidden) do
+    with {:ok, name} <- sheet_name(workbook, sheet, hidden), do: {:ok, [name]}
+  end
 
   defp sheet_name(workbook, nil, hidden), do: workbook |> candidates(hidden) |> first_sheet()
 
