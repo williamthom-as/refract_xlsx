@@ -37,6 +37,7 @@ defmodule RefractXlsx.MixProject do
       {:xlsx_reader, "~> 0.8"},
       {:exceed, "~> 0.7"},
       {:decimal, "~> 2.0 or ~> 3.0"},
+      {:refract_duckdb, path: "../refract_duckdb", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}

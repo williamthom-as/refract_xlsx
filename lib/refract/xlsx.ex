@@ -1,17 +1,28 @@
 defmodule Refract.XLSX do
   @moduledoc """
-  xlsx reader for refract, built on `xlsx_reader`. reads one sheet at a time, cells come back as
-  native values: text, `Decimal` numbers, `Date`, `NaiveDateTime`, `Time`, booleans, `""` for blanks.
+  xlsx reader and writer for refract, built on `xlsx_reader` and `exceed`.
+  reads one sheet at a time, cells come back as native values: text, `Decimal` numbers, `Date`,
+  `NaiveDateTime`, `Time`, booleans, `""` for blanks. writes native values with their types,
+  times as text.
 
       {:ok, rows} = Refract.XLSX.stream("bills.xlsx", sheet: "Sep")
       {:ok, result} = Refract.XLSX.classify("bills.xlsx", shapes, sheet: 2)
+      :ok = Refract.XLSX.write(rows, "out/report.xlsx", header: ["account", "cost"], sheet: "Report")
   """
 
   use Refract.Reader
+  use Refract.Writer
 
   @type sheet :: String.t() | pos_integer()
 
   @type open_opt :: {:sheet, sheet() | nil} | {:hidden, boolean()}
+
+  @type encode_opt :: {:header, [String.t()] | nil} | {:sheet, String.t()}
+
+  @spec extension() :: String.t()
+
+  @impl Refract.Writer
+  def extension, do: "xlsx"
 
   @spec extensions() :: [String.t()]
 
@@ -52,6 +63,58 @@ defmodule Refract.XLSX do
          {:ok, name} <- sheet_name(workbook, sheet, hidden) do
       {:ok, %{sheet: name, sheets: workbook.visible, hidden: workbook.all -- workbook.visible}}
     end
+  end
+
+  @spec encode(Enumerable.t(), [encode_opt()]) :: Enumerable.t()
+
+  @impl Refract.Writer
+  def encode(rows, opts) do
+    opts = Keyword.validate!(opts, header: nil, sheet: "Sheet1")
+    header = Keyword.fetch!(opts, :header)
+    sheet = Keyword.fetch!(opts, :sheet)
+
+    validate_sheet_name(sheet)
+
+    worksheet = Exceed.Worksheet.new(sheet, nil, content(rows, header))
+
+    "refract"
+    |> Exceed.Workbook.new()
+    |> Exceed.Workbook.add_worksheet(worksheet)
+    |> Exceed.stream!()
+  end
+
+  defp content(rows, nil) do
+    Stream.transform(
+      rows,
+      fn -> nil end,
+      fn
+        row, nil ->
+          header = row |> Map.keys() |> Enum.sort()
+
+          {[header, values(row, header)], header}
+
+        row, header ->
+          {[values(row, header)], header}
+      end,
+      &end_of_rows/1,
+      fn _header -> :ok end
+    )
+  end
+
+  defp content(rows, header), do: Stream.concat([header], Stream.map(rows, &values(&1, header)))
+
+  defp end_of_rows(nil), do: {[[]], nil}
+  defp end_of_rows(header), do: {[], header}
+
+  defp values(row, header), do: Enum.map(header, &value(Map.fetch!(row, &1)))
+
+  defp value(%Time{} = time), do: Time.to_iso8601(time)
+  defp value(value), do: value
+
+  defp validate_sheet_name(sheet) when is_binary(sheet), do: :ok
+
+  defp validate_sheet_name(sheet) do
+    raise ArgumentError, "sheet must be a name, got: #{inspect(sheet)}"
   end
 
   defp validate_sheet(nil), do: :ok
