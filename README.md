@@ -1,21 +1,25 @@
-# RefractXlsx
+# refract_xlsx
 
-**TODO: Add description**
+XLSX reader and writer for [refract](https://github.com/williamthom-as/refract).
 
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `refract_xlsx` to your list of dependencies in `mix.exs`:
+- `Refract.XLSX` reads `.xlsx` / `.xlsm` one sheet at a time (`sheet:` a name or a position from 1, default the first visible sheet; `hidden: true` counts hidden sheets)
+- cells come back typed: text, `Decimal` numbers, `Date`, `NaiveDateTime`, `Time`, booleans, `""` for blanks, formula values
+- writes one sheet per file (`sheet:`, default `"Sheet1"`), values keep their types, times as text
+- `facts/2` names the sheet read, the visible sheets and the hidden ones
+- a workbook with several tables: `Refract.XLSX.sheets/2`, `Refract.XLSX.classify_sheets/3`
+- built on `xlsx_reader` and `exceed`; the old binary `.xls` is not supported
 
 ```elixir
-def deps do
-  [
-    {:refract_xlsx, "~> 0.1.0"}
-  ]
-end
+{:ok, rows} = Refract.XLSX.stream("bills.xlsx", sheet: "Sep")
+{:ok, results} = Refract.Classify.folder("inbox", shapes, readers: [Refract.XLSX, Refract.CSV])
+
+{:ok, sheets} = Refract.XLSX.classify_sheets("q3.xlsx", shapes)
+:ok = Refract.XLSX.write(rows, "out/report.xlsx", header: ["account", "cost"], sheet: "Report")
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/refract_xlsx>.
+## Install
 
+```elixir
+{:refract, path: "../refract"},
+{:refract_xlsx, path: "../refract_xlsx"}
+```
