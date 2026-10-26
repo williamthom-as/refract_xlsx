@@ -112,30 +112,25 @@ defmodule Refract.XLSX do
     |> Exceed.stream!()
   end
 
-  defp content(rows, nil) do
+  defp content(rows, header) do
+    rows
+    |> Refract.Writer.cells(header)
+    |> Stream.map(fn cells -> Enum.map(cells, &value/1) end)
+    |> at_least_one_line()
+  end
+
+  defp at_least_one_line(lines) do
     Stream.transform(
-      rows,
-      fn -> nil end,
-      fn
-        row, nil ->
-          header = row |> Map.keys() |> Enum.sort()
-
-          {[header, values(row, header)], header}
-
-        row, header ->
-          {[values(row, header)], header}
-      end,
-      &end_of_rows/1,
-      fn _header -> :ok end
+      lines,
+      fn -> :empty end,
+      fn line, _state -> {[line], :written} end,
+      &end_of_lines/1,
+      fn _state -> :ok end
     )
   end
 
-  defp content(rows, header), do: Stream.concat([header], Stream.map(rows, &values(&1, header)))
-
-  defp end_of_rows(nil), do: {[[]], nil}
-  defp end_of_rows(header), do: {[], header}
-
-  defp values(row, header), do: Enum.map(header, &value(Map.fetch!(row, &1)))
+  defp end_of_lines(:empty), do: {[[]], :empty}
+  defp end_of_lines(:written), do: {[], :written}
 
   defp value(%Time{} = time), do: Time.to_iso8601(time)
   defp value(value), do: value
