@@ -204,6 +204,19 @@ defmodule Refract.XLSXTest do
       for {sheet, {:ok, result}} <- sheets, do: assert(result.file.format.sheet == sheet)
     end
 
+    test "each result carries the reader and its sheet, so validate reads the same sheet" do
+      path = fixture("months.xlsx")
+      assert {:ok, sheets} = XLSX.classify_sheets(path, [aws_bill()])
+
+      for {sheet, {:ok, %Result{verdict: :match} = result}} <- sheets do
+        assert {XLSX, [sheet: ^sheet]} = result.reader
+
+        {reader, opts} = result.reader
+        assert {:ok, %{rows: rows}} = reader.validate(path, result.shape, opts)
+        assert rows > 0
+      end
+    end
+
     test "a cover sheet does not hide the table sheet" do
       assert {:ok, sheets} = XLSX.classify_sheets(fixture("sheets.xlsx"), [invoice()])
 
