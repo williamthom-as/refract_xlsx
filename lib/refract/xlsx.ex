@@ -30,11 +30,21 @@ defmodule Refract.XLSX do
   @impl Refract.Reader
   def extensions, do: ["xlsx", "xlsm"]
 
+  @spec open_options() :: keyword()
+
+  @impl Refract.Reader
+  def open_options, do: [sheet: nil, hidden: false]
+
+  @spec encode_options() :: keyword()
+
+  @impl Refract.Writer
+  def encode_options, do: [header: nil, sheet: "Sheet1"]
+
   @spec open(Refract.source(), [open_opt()]) :: {:ok, Enumerable.t()} | {:error, term()}
 
   @impl Refract.Reader
   def open(source, opts) do
-    opts = Keyword.validate!(opts, sheet: nil, hidden: false)
+    opts = Keyword.validate!(opts, open_options())
     sheet = Keyword.fetch!(opts, :sheet)
     hidden = Keyword.fetch!(opts, :hidden)
 
@@ -53,7 +63,7 @@ defmodule Refract.XLSX do
 
   @impl Refract.Reader
   def facts(source, opts) do
-    opts = Keyword.validate!(opts, sheet: nil, hidden: false)
+    opts = Keyword.validate!(opts, open_options())
     sheet = Keyword.fetch!(opts, :sheet)
     hidden = Keyword.fetch!(opts, :hidden)
 
@@ -69,7 +79,7 @@ defmodule Refract.XLSX do
   @spec sheets(Refract.source(), [open_opt()]) :: {:ok, [String.t()]} | {:error, term()}
 
   def sheets(source, opts) do
-    opts = Keyword.validate!(opts, sheet: nil, hidden: false)
+    opts = Keyword.validate!(opts, open_options())
     sheet = Keyword.fetch!(opts, :sheet)
     hidden = Keyword.fetch!(opts, :hidden)
 
@@ -98,7 +108,7 @@ defmodule Refract.XLSX do
 
   @impl Refract.Writer
   def encode(rows, opts) do
-    opts = Keyword.validate!(opts, header: nil, sheet: "Sheet1")
+    opts = Keyword.validate!(opts, encode_options())
     header = Keyword.fetch!(opts, :header)
     sheet = Keyword.fetch!(opts, :sheet)
 
