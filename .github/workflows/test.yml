@@ -13,8 +13,11 @@ permissions:
 
 jobs:
   build:
-    name: Build and test against refract and refract_duckdb main
+    name: Build and test against refract_core and refract_duckdb main
     runs-on: ubuntu-latest
+    env:
+      REFRACT_PATH: ../refract
+      REFRACT_DUCKDB_PATH: ../refract_duckdb
     defaults:
       run:
         working-directory: refract_xlsx
@@ -26,24 +29,22 @@ jobs:
     - name: Check out refract core beside the plugin
       uses: actions/checkout@v4
       with:
-        repository: williamthom-as/refract
+        repository: williamthom-as/refract_core
         ref: main
         path: refract
-        token: ${{ secrets.REFRACT_CHECKOUT_TOKEN }}
     - name: Check out refract_duckdb beside the plugin (a test only dep)
       uses: actions/checkout@v4
       with:
         repository: williamthom-as/refract_duckdb
         ref: main
         path: refract_duckdb
-        token: ${{ secrets.REFRACT_CHECKOUT_TOKEN }}
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
         elixir-version: '1.20.2'
         otp-version: '28.5'
     - name: Restore dependencies cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: refract_xlsx/deps
         key: ${{ runner.os }}-mix-${{ hashFiles('refract_xlsx/mix.lock', 'refract/mix.lock', 'refract_duckdb/mix.lock') }}
@@ -63,7 +64,7 @@ jobs:
 
     # dialyzer last since its slowest
     - name: Restore PLT cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: refract_xlsx/priv/plts
         key: ${{ runner.os }}-plt-otp28.5-elixir1.20.2-${{ hashFiles('refract_xlsx/mix.lock', 'refract_xlsx/mix.exs', 'refract/mix.lock', 'refract_duckdb/mix.lock', 'refract/lib/**/*.ex') }}

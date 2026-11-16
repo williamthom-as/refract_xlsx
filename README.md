@@ -1,6 +1,6 @@
 # refract_xlsx
 
-XLSX reader and writer for [refract](https://github.com/williamthom-as/refract).
+XLSX reader and writer for [refract](https://github.com/williamthom-as/refract_core).
 
 - `Refract.XLSX` reads `.xlsx` / `.xlsm` one sheet at a time (`sheet:` a name or a position from 1, default the first visible sheet; `hidden: true` counts hidden sheets)
 - cells come back typed: text, `Decimal` numbers, `Date`, `NaiveDateTime`, `Time`, booleans, `""` for blanks, formula values
@@ -20,6 +20,13 @@ XLSX reader and writer for [refract](https://github.com/williamthom-as/refract).
 ## Install
 
 ```elixir
-{:refract, path: "../refract"},
-{:refract_xlsx, path: "../refract_xlsx"}
+{:refract_xlsx, github: "williamthom-as/refract_xlsx", tag: "v0.1.0"}
 ```
+
+## Development
+
+against local checkouts: `REFRACT_PATH=../refract REFRACT_DUCKDB_PATH=../refract_duckdb mix test`
+
+## License
+
+Apache-2.0, see [LICENSE](LICENSE).
